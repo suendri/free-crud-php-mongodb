@@ -1,0 +1,22 @@
+{
+    "name": "suendri/free-crud-php-mongodb",
+    "description": "Create Read Update and Delete with PHP using PDO and Database MongoDB",
+    "require": {
+        "php": "^7.2",
+        "mongodb/mongodb": "^1.5"
+    },
+    "require-dev": {
+        "filp/whoops": "^2.7"
+    },
+    "authors": [
+        {
+            "name": "Suendri",
+            "email": "suendri@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    }
+}
