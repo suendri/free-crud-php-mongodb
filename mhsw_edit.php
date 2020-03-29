@@ -7,6 +7,7 @@
  * --
  * --
  * http://gosoftware.web.id
+ * http://phpbego.wordpress.com
  * e-mail : cs@gosoftware.web.id
  * WA : 6285263616901
  * --
@@ -35,11 +36,21 @@ $row = $mhsw->edit($id);
 	<div class="form-group row">
 		<label class="col-sm-2">ALAMAT</label>
 		<div class="col-sm-10">
-			<input class="form-control" type="text" name="mhsw_alamat" value="<?php echo $row['mhsw_alamat']; ?>" placeholder="Alamat">
+			<textarea rows="3" class="form-control" name="mhsw_alamat"><?php echo $row['mhsw_alamat']; ?></textarea>
+		</div>
+	</div>
+	<div class="form-group row">
+		<label class="col-sm-2">PROGRAM STUDI</label>
+		<div class="col-sm-10">
+			<input class="form-control" type="text" name="mhsw_prodi" value="<?php echo $row['mhsw_prodi']; ?>" placeholder="Program Studi">
 		</div>
 	</div>
 	<div class="form-group float-right">
-		<input class="btn btn-success" type="submit" name="update" value="UPDATE">
-		<a href="<?php echo URL; ?>/mahasiswa" class="btn btn-primary">KEMBALI</a>
+		<a href="<?php echo URL; ?>/mahasiswa" class="btn btn-primary">
+			<i class="fa fa-arrow-left mr-2"></i> KEMBALI
+		</a>
+		<button class="btn btn-success" type="submit" name="update">
+			<i class="fa fa-pencil mr-2"></i> UPDATE
+		</button>
 	</div>	
 </form>

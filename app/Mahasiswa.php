@@ -5,6 +5,7 @@
  * --
  * --
  * http://gosoftware.web.id
+ * http://phpbego.wordpress.com
  * e-mail : cs@gosoftware.web.id
  * WA : 6285263616901
  * --
@@ -13,6 +14,7 @@
 
 namespace App;
 use MongoDB;
+use Carbon\Carbon;
 
 class Mahasiswa extends Controller {
 
@@ -36,12 +38,18 @@ class Mahasiswa extends Controller {
 		$mhsw_nim = $_POST['mhsw_nim'];
 		$mhsw_nama = $_POST['mhsw_nama'];
 		$mhsw_alamat = $_POST['mhsw_alamat'];
+		$mhsw_prodi = $_POST['mhsw_prodi'];
+		$created_at = Carbon::now()->toDateTimeString();
+		$updated_at = "";
 
 		$collection = $this->db->tb_mhsw;
 		$collection->insertOne([
 			'mhsw_nim' => $mhsw_nim,
 			'mhsw_nama' => $mhsw_nama,
-			'mhsw_alamat' => $mhsw_alamat
+			'mhsw_alamat' => $mhsw_alamat,
+			'mhsw_prodi' => $mhsw_prodi,
+			'created_at' => $created_at,
+			'updated_at' => $updated_at
 		]);
 
 		return false;
@@ -62,6 +70,8 @@ class Mahasiswa extends Controller {
 		$mhsw_nim = $_POST['mhsw_nim'];
 		$mhsw_nama = $_POST['mhsw_nama'];
 		$mhsw_alamat = $_POST['mhsw_alamat'];
+		$mhsw_prodi = $_POST['mhsw_prodi'];
+		$updated_at = Carbon::now()->toDateTimeString();
 
 		$collection = $this->db->tb_mhsw;
 		$collection->updateOne(
@@ -69,7 +79,9 @@ class Mahasiswa extends Controller {
 			['$set' => [
 				'mhsw_nim' => $mhsw_nim, 
 				'mhsw_nama' => $mhsw_nama,
-				'mhsw_alamat' => $mhsw_alamat
+				'mhsw_alamat' => $mhsw_alamat,
+				'mhsw_prodi' => $mhsw_prodi,
+				'updated_at' => $updated_at
 			]]
 		);
 

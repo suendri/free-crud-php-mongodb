@@ -1,3 +1,0 @@
-{
-  "mhsw_nim" : "17021011", "mhsw_nama" : "Fauziah", "mhsw_alamat" : "Kisaran"
-}

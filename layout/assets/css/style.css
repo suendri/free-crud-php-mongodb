@@ -3,12 +3,8 @@
 body {
 	font-family: 'Source Sans Pro', sans-serif;
 	font-size: 16px;
-	background: url(../images/background-photo.jpg) no-repeat center center fixed; 
-	-webkit-background-size: cover;
-	-moz-background-size: cover;
-	-o-background-size: cover;
-	background-size: cover;	
 }
+
 
 * {
 	-webkit-border-radius: 0 !important;
@@ -23,8 +19,8 @@ a {
 h2 {
 	font-size: 25px;
 	font-weight: bold;
-	padding: 8px 0;
-	margin-bottom: 20px; 
+	padding: 12px 0;
+	margin-bottom: 22px; 
 	border-bottom: 1px dotted #ccc;
 	
 }

@@ -1,5 +1,5 @@
 # CRUD PHP MongoDB
-Create Read Update and Delete with PHP and Database MongoDB
+Simple Create Read Update and Delete with PHP and Database MongoDB
 
 ## Update
 1. Composer Ready
@@ -13,6 +13,8 @@ Create Read Update and Delete with PHP and Database MongoDB
 ## Installation
 ```sh
 git clone https://github.com/suendri/free-crud-php-mongodb.git
+setting Connection app/Controller.php
+set RewriteBase on .htaccess based on folder name
 ```
 ## Donation
 Please read DONASI.txt

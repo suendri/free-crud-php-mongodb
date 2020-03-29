@@ -3,7 +3,8 @@
     "description": "Create Read Update and Delete with PHP using PDO and Database MongoDB",
     "require": {
         "php": "^7.2",
-        "mongodb/mongodb": "^1.5"
+        "mongodb/mongodb": "^1.5",
+        "nesbot/carbon": "^2.29"
     },
     "require-dev": {
         "filp/whoops": "^2.7"
