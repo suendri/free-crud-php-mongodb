@@ -14,7 +14,7 @@
 	<link rel="stylesheet" href="<?php echo URL; ?>/layout/assets/css/datatables.min.css">
 	<link rel="stylesheet" href="<?php echo URL; ?>/layout/assets/css/style.css">
 
-	<script src="<?php echo URL; ?>/layout/assets/js/jquery-3.4.1.min.js"></script>
+	<script src="<?php echo URL; ?>/layout/assets/js/jquery-3.5.1.min.js"></script>
 	<script src="<?php echo URL; ?>/layout/assets/js/datatables.min.js"></script>
 	<script>
 		$(document).ready(function () {
@@ -37,7 +37,7 @@
 		</header>
 
 		<section>
-			<nav class="navbar navbar-expand-lg navbar-light" style="background-color: #343a40;">
+			<nav class="navbar navbar-expand-lg navbar-light" style="background-color: #244f91;">
 				<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
 					<span class="navbar-toggler-icon"></span>
 				</button>
@@ -45,24 +45,35 @@
 					<ul class="navbar-nav mr-auto">
 						<li class="nav-item">
 							<a class="nav-link" href="<?php echo URL; ?>">Home</a>
-						</li>						
+						</li>					
+						<?php if (App\Controller::session('login') == true) { ?>	
 						<li class="nav-item">
 							<a class="nav-link" href="<?php echo URL; ?>/mahasiswa">Mahasiswa</a>
 						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="<?php echo URL; ?>/user">User</a>
+						</li>
+						<?php } ?>
 						<li class="nav-item">
 							<a class="nav-link" href="<?php echo URL; ?>/about">About</a>
 						</li>
 					</ul>
 					<ul class="navbar-nav ml-auto">
-						<li class="nav-item dropdown">
-							<a class="nav-link" data-toggle="dropdown" href="#" aria-haspopup="true" aria-expanded="false">
-								<i class="fa fa-ellipsis-v" aria-hidden="true"></i>
-							</a>
-							<div class="dropdown-menu dropdown-menu-right">
-								<a class="dropdown-item" href="#"><i class="fa fa-user mr-2"></i> Admin</a>
-								<a class="dropdown-item" href="#"><i class="fa fa-sign-out mr-2"></i> Logout</a></a>
-							</div>
-						</li>
+						<?php if (!App\Controller::session('login')) { ?>
+							<li class="nav-item">
+								<a class="nav-link" href="<?php echo URL; ?>/login">Login</a>
+							</li>
+						<?php } else { ?>
+							<li class="nav-item dropdown">
+								<a class="nav-link" data-toggle="dropdown" href="#" aria-haspopup="true" aria-expanded="false">
+									<i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+								</a>
+								<div class="dropdown-menu dropdown-menu-right">
+									<a class="dropdown-item" href="<?php echo URL; ?>/akun"><i class="fa fa-user mr-2"></i> <?php echo App\Controller::session('user_name') ?></a>
+									<a class="dropdown-item" href="<?php echo URL; ?>/logout"><i class="fa fa-sign-out mr-2"></i> Logout</a></a>
+								</div>
+							</li>
+						<?php } ?>
 					</ul>
 				</div>
 			</nav>
@@ -77,7 +88,8 @@
 		</main>
 
 		<footer>
-			Copyright &copy; 2020 - <a href="http://gosoftware.web.id/">http://gosoftware.web.id</a> - <a href="https://phpbego.wordpress.com/">https://phpbego.wordpress.com</a>
+			Copyright © <?php echo date('Y') ?>  All rights reserved.
+			<div><a href="http://gosoftware.web.id/">http://gosoftware.web.id</a> &#183; <a href="https://phpbego.wordpress.com/">https://phpbego.wordpress.com</a></div>
 		</footer>
 
 	</div>
