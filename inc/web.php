@@ -19,23 +19,23 @@ $route->add('/', function() {
 });
 
 $route->add('/mahasiswa', function() { 
-	include "mhsw_tampil.php";
+	include "mhsw_index.php";
 });
-$route->add('/mahasiswa/input', function() { 
-	include "mhsw_input.php";
+$route->add('/mahasiswa/create', function() { 
+	include "mhsw_create.php";
 });
 $route->add('/mahasiswa/edit/.+', function($id) { 
 	include "mhsw_edit.php";
 });
-$route->add('/mahasiswa/detail/.+', function($id) { 
-	include "mhsw_detail.php";
+$route->add('/mahasiswa/show/.+', function($id) { 
+	include "mhsw_show.php";
 });
 
 $route->add('/user', function() { 
-	include "user_tampil.php";
+	include "user_index.php";
 });
-$route->add('/user/input', function() { 
-	include "user_input.php";
+$route->add('/user/create', function() { 
+	include "user_create.php";
 });
 $route->add('/user/edit/.+', function($id) { 
 	include "user_edit.php";

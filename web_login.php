@@ -8,7 +8,7 @@
 			<div class="card-header">Login</div>
 
 			<div class="card-body">
-				<form method="POST" action="<?php echo URL; ?>/user_proses.php">
+				<form method="POST" action="<?php echo URL; ?>/web_login_p.php">
 					<div class="form-group row">
 						<label for="email" class="col-md-4 col-form-label text-md-right">Username</label>
 

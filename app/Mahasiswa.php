@@ -26,7 +26,7 @@ class Mahasiswa extends Controller {
 	public function tampil()
 	{
 
-		$collection = $this->db->tb_mhsw;
+		$collection = $this->db->col_mhsw;
 		$rows = $collection->find([]);
 
 		return $rows;
@@ -42,7 +42,7 @@ class Mahasiswa extends Controller {
 		$created_at = Carbon::now()->toDateTimeString();
 		$updated_at = "";
 
-		$collection = $this->db->tb_mhsw;
+		$collection = $this->db->col_mhsw;
 		$collection->insertOne([
 			'mhsw_nim' => $mhsw_nim,
 			'mhsw_nama' => $mhsw_nama,
@@ -58,7 +58,7 @@ class Mahasiswa extends Controller {
 	public function edit($id)
 	{
 
-		$collection = $this->db->tb_mhsw;
+		$collection = $this->db->col_mhsw;
 		$row = $collection->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
 
 		return $row;
@@ -73,7 +73,7 @@ class Mahasiswa extends Controller {
 		$mhsw_prodi = $_POST['mhsw_prodi'];
 		$updated_at = Carbon::now()->toDateTimeString();
 
-		$collection = $this->db->tb_mhsw;
+		$collection = $this->db->col_mhsw;
 		$collection->updateOne(
 			['_id' => new MongoDB\BSON\ObjectId($_id)],
 			['$set' => [
@@ -91,7 +91,7 @@ class Mahasiswa extends Controller {
 	public function detail($id)
 	{
 
-		$collection = $this->db->tb_mhsw;
+		$collection = $this->db->col_mhsw;
 		$row = $collection->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
 
 		return $row;
@@ -102,7 +102,7 @@ class Mahasiswa extends Controller {
 
 		$_id = $_POST['_id'];
 
-		$collection = $this->db->tb_mhsw;
+		$collection = $this->db->col_mhsw;
 		$collection->deleteOne(['_id' => new MongoDB\BSON\ObjectId($_id)]);
 
 		return false;

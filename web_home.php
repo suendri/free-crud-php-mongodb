@@ -9,13 +9,12 @@
 <?php } ?>
 
 <div class="alert alert-info">
-	Create Read Update and Delete with PHP using PDO and Database MongoDB
-	<div>Demo <strong>Username : admin, Password: admin</strong></div>
+	Create Read Update and Delete with PHP and Database MongoDB
+	<div class="my-2">Demo <strong>Username : admin, Password: admin</strong></div>
 </div>
 
 <div class="alert alert-warning">
-	Anda membutuhkan MongoDB Enterprise atau Community Server atau MongoDB Atlas dan Koneksi Internet untuk 
-	menjalankan program ini.
+	Anda membutuhkan MongoDB Server menjalankan program ini.
 </div>
 
 <?php unset($_SESSION['login_error']);

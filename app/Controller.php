@@ -24,11 +24,12 @@ class Controller {
 
 		try {
 
-			// ----> Database local : dbcrudphpmongo
-			$this->db = (new MongoDB\Client("mongodb://localhost:27017"))->dbcrudphpmongo;
+			// ----> Database local : crudphpmongo
+			$this->db = (new MongoDB\Client("mongodb://localhost:27017"))->crudphpmongo;
 
-			// ----> Database cloud : dbcrudphpmongo
-			//$this->db = (new MongoDB\Client('mongodb://username:password@clusterlatihan-shard-00-00-luxwt.gcp.mongodb.net:27017,clusterlatihan-shard-00-01-luxwt.gcp.mongodb.net:27017,clusterlatihan-shard-00-02-luxwt.gcp.mongodb.net:27017/dbcrudphpmongo?replicaSet=Clusterlatihan-shard-0&ssl=true&authSource=admin'))->dbcrudphpmongo;
+			// ----> Database cloud : crudphpmongo
+			// ----> Cluster clusterlatihan
+			//$this->db = (new MongoDB\Client('mongodb://username:password@clusterlatihan-shard-00-00-luxwt.gcp.mongodb.net:27017,clusterlatihan-shard-00-01-luxwt.gcp.mongodb.net:27017,clusterlatihan-shard-00-02-luxwt.gcp.mongodb.net:27017/crudphpmongo?replicaSet=Clusterlatihan-shard-0&ssl=true&authSource=admin'))->crudphpmongo;
 		
 		} catch (Exception $e) {
 			exit ("Error! " . $e->getMessage());

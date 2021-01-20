@@ -21,7 +21,7 @@ $rows = $mhsw->tampil();
 
 <h2>
 	DATA MAHASISWA
-	<a class="btn btn-primary float-right" href="<?php echo URL; ?>/mahasiswa/input">
+	<a class="btn btn-primary float-right" href="<?php echo URL; ?>/mahasiswa/create">
 		<i class="fa fa-plus mr-2"></i> Tambah
 	</a>
 </h2>
@@ -47,7 +47,7 @@ $rows = $mhsw->tampil();
 						<a href="<?php echo URL; ?>/mahasiswa/edit/<?php echo $row['_id']; ?>" class="btn btn-sm btn-warning">
 							<i class="fa fa-edit"></i> EDIT
 						</a>
-						<a href="<?php echo URL; ?>/mahasiswa/detail/<?php echo $row['_id']; ?>" class="btn btn-sm btn-info ml-2">
+						<a href="<?php echo URL; ?>/mahasiswa/show/<?php echo $row['_id']; ?>" class="btn btn-sm btn-info ml-2">
 							<i class="fa fa-info-circle"></i> DETAIL
 						</a>
 						<form method="POST" action="<?php echo URL; ?>/mhsw_proses.php" id="deleteForm">

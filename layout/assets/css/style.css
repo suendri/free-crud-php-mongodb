@@ -35,14 +35,14 @@ footer {
 	padding: 10px 0;
 }
 
-.container {
+.main {
 	background-color: #fff;
 }
 
-.nav-link {
+.navbar-brand, .nav-link {
 	color: #BEDAFB !important;
 }
 
-.nav-link:hover {
+.navbar-brand, .nav-link:hover {
 	color: #FFFFFF !important;
 } 
