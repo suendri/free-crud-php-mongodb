@@ -1,23 +1,21 @@
 {
     "name": "suendri/free-crud-php-mongodb",
-    "description": "Create Read Update and Delete with PHP and Database MongoDB",
+    "description": "Create Read Update and Delete with PHP using PDO and Database MongoDB",
+    "type": "project",
     "authors": [
         {
             "name": "Suendri",
             "email": "suendri@gmail.com"
         }
     ],
-    "require": {
-        "php": "^7.4",
-        "mongodb/mongodb": "^1.8",
-        "nesbot/carbon": "^2.43"
-    },
-    "require-dev": {
-        "filp/whoops": "^2.9"
-    },
     "autoload": {
         "psr-4": {
             "App\\": "app/"
         }
+    },
+    "require": {
+        "filp/whoops": "^2.14",
+        "mongodb/mongodb": "^1.17",
+        "nesbot/carbon": "^2.71"
     }
 }

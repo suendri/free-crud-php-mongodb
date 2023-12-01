@@ -1,19 +1,23 @@
 <?php
 
 /**
- * Gosoftware Media Indonesia 2020
+ * https://github.com/suendri
  * --
- * --
- * http://gosoftware.web.id
- * http://phpbego.wordpress.com
- * e-mail : cs@gosoftware.web.id
- * WA : 6285263616901
- * --
+ * e-mail : suendri@gmail.com
+ * WA     : 62852-6361-6901
  * --
  */
 
-// Config
-require_once "inc/config.php";
+// Laporan error
+error_reporting(E_ALL);
 
-// Template
-require_once "layout/index.php";
+// Autoload
+require_once __DIR__ . "/vendor/autoload.php";
+
+// Whoops
+$whoops = new \Whoops\Run;
+$whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
+$whoops->register();
+
+new App\Config();
+new App\Core\Bootstrap();

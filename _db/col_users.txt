@@ -1,3 +1,0 @@
-{
-  "user_name" : "admin", "user_password" : "$2y$10$DlC93GlZPGTaKDBeE7doluU6OwZA2.naOGZRE7NN1YESVZfyEm3im", "user_role" : "administrator"
-}
