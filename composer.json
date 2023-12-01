@@ -1,6 +1,6 @@
 {
     "name": "suendri/free-crud-php-mongodb",
-    "description": "Create Read Update and Delete with PHP using PDO and Database MongoDB",
+    "description": "Create Read Update and Delete with PHP and Database MongoDB",
     "type": "project",
     "authors": [
         {
