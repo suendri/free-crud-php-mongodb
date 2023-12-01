@@ -1,6 +1,6 @@
 ## Free CRUD PHP MongoDB
 
-Create Read Update and Delete with PHP using PDO and Database MongoDB
+Create Read Update and Delete with PHP and Database MongoDB
 
 ## Donation
 Please read DONASI.txt
