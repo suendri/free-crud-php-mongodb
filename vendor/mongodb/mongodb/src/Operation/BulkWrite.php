@@ -17,8 +17,10 @@
 
 namespace MongoDB\Operation;
 
+use MongoDB\Builder\BuilderEncoder;
 use MongoDB\BulkWriteResult;
 use MongoDB\Codec\DocumentCodec;
+use MongoDB\Codec\Encoder;
 use MongoDB\Driver\BulkWrite as Bulk;
 use MongoDB\Driver\Exception\RuntimeException as DriverRuntimeException;
 use MongoDB\Driver\Server;
@@ -43,8 +45,11 @@ use function sprintf;
  * Operation for executing multiple write operations.
  *
  * @see \MongoDB\Collection::bulkWrite()
+ *
+ * @psalm-type Document = object|array
+ * @psalm-type OperationType = array{deleteMany: array{0: Document, 1?: array}}|array{deleteOne: array{0: Document, 1?: array}}|array{insertOne: array{0: Document}}|array{replaceOne: array{0: Document, 1: Document, 2?: array}}|array{updateMany: array{0: Document, 1: Document, 2?: array}}|array{updateOne: array{0: Document, 1: Document, 2?: array}}
  */
-class BulkWrite implements Executable
+final class BulkWrite
 {
     public const DELETE_MANY = 'deleteMany';
     public const DELETE_ONE  = 'deleteOne';
@@ -53,11 +58,7 @@ class BulkWrite implements Executable
     public const UPDATE_MANY = 'updateMany';
     public const UPDATE_ONE  = 'updateOne';
 
-    private string $databaseName;
-
-    private string $collectionName;
-
-    /** @var array[] */
+    /** @psalm-var list<OperationType> */
     private array $operations;
 
     private array $options;
@@ -91,12 +92,23 @@ class BulkWrite implements Executable
      *  * upsert (boolean): When true, a new document is created if no document
      *    matches the query. The default is false.
      *
+     * Supported options for replaceOne and updateOne operations:
+     *
+     *  * sort (document): Determines which document the operation modifies if
+     *    the query selects multiple documents.
+     *
+     *    This is not supported for server versions < 8.0 and will result in an
+     *    exception at execution time if used.
+     *
      * Supported options for updateMany and updateOne operations:
      *
      *  * arrayFilters (document array): A set of filters specifying to which
      *    array elements an update should apply.
      *
      * Supported options for the bulk write operation:
+     *
+     *  * builderEncoder (MongoDB\Codec\Encoder): Encoder for query and
+     *    aggregation builders. If not given, the default encoder will be used.
      *
      *  * bypassDocumentValidation (boolean): If true, allows the write to
      *    circumvent document level validation. The default is false.
@@ -123,13 +135,14 @@ class BulkWrite implements Executable
      *
      *  * writeConcern (MongoDB\Driver\WriteConcern): Write concern.
      *
-     * @param string  $databaseName   Database name
-     * @param string  $collectionName Collection name
-     * @param array[] $operations     List of write operations
-     * @param array   $options        Command options
+     * @param string $databaseName   Database name
+     * @param string $collectionName Collection name
+     * @param array  $operations     List of write operations
+     * @psalm-param list<OperationType> $operations
+     * @param array  $options        Command options
      * @throws InvalidArgumentException for parameter/option parsing errors
      */
-    public function __construct(string $databaseName, string $collectionName, array $operations, array $options = [])
+    public function __construct(private string $databaseName, private string $collectionName, array $operations, array $options = [])
     {
         if (empty($operations)) {
             throw new InvalidArgumentException('$operations is empty');
@@ -140,6 +153,10 @@ class BulkWrite implements Executable
         }
 
         $options += ['ordered' => true];
+
+        if (isset($options['builderEncoder']) && ! $options['builderEncoder'] instanceof Encoder) {
+            throw InvalidArgumentException::invalidType('"builderEncoder" option', $options['builderEncoder'], Encoder::class);
+        }
 
         if (isset($options['bypassDocumentValidation']) && ! is_bool($options['bypassDocumentValidation'])) {
             throw InvalidArgumentException::invalidType('"bypassDocumentValidation" option', $options['bypassDocumentValidation'], 'boolean');
@@ -173,21 +190,17 @@ class BulkWrite implements Executable
             unset($options['writeConcern']);
         }
 
-        $this->databaseName = $databaseName;
-        $this->collectionName = $collectionName;
-        $this->operations = $this->validateOperations($operations, $options['codec'] ?? null);
+        $this->operations = $this->validateOperations($operations, $options['codec'] ?? null, $options['builderEncoder'] ?? new BuilderEncoder());
         $this->options = $options;
     }
 
     /**
      * Execute the operation.
      *
-     * @see Executable::execute()
-     * @return BulkWriteResult
      * @throws UnsupportedException if write concern is used and unsupported
      * @throws DriverRuntimeException for other driver errors (e.g. connection errors)
      */
-    public function execute(Server $server)
+    public function execute(Server $server): BulkWriteResult
     {
         $inTransaction = isset($this->options['session']) && $this->options['session']->isInTransaction();
         if ($inTransaction && isset($this->options['writeConcern'])) {
@@ -267,12 +280,12 @@ class BulkWrite implements Executable
     }
 
     /**
-     * @param array[] $operations
-     * @return array[]
+     * @psalm-param list<OperationType> $operations
+     * @psalm-return list<OperationType>
      */
-    private function validateOperations(array $operations, ?DocumentCodec $codec): array
+    private function validateOperations(array $operations, ?DocumentCodec $codec, Encoder $builderEncoder): array
     {
-        foreach ($operations as $i => $operation) {
+        foreach ($operations as $i => &$operation) {
             if (! is_array($operation)) {
                 throw InvalidArgumentException::invalidType(sprintf('$operations[%d]', $i), $operation, 'array');
             }
@@ -297,13 +310,15 @@ class BulkWrite implements Executable
                     // $args[0] was already validated above. Since DocumentCodec::encode will always return a Document
                     // instance, there is no need to re-validate the returned value here.
                     if ($codec) {
-                        $operations[$i][$type][0] = $codec->encode($args[0]);
+                        $operation[$type][0] = $codec->encode($args[0]);
                     }
 
                     break;
 
                 case self::DELETE_MANY:
                 case self::DELETE_ONE:
+                    $operation[$type][0] = $builderEncoder->encodeIfSupported($args[0]);
+
                     if (! isset($args[1])) {
                         $args[1] = [];
                     }
@@ -318,17 +333,19 @@ class BulkWrite implements Executable
                         throw InvalidArgumentException::expectedDocumentType(sprintf('$operations[%d]["%s"][1]["collation"]', $i, $type), $args[1]['collation']);
                     }
 
-                    $operations[$i][$type][1] = $args[1];
+                    $operation[$type][1] = $args[1];
 
                     break;
 
                 case self::REPLACE_ONE:
+                    $operation[$type][0] = $builderEncoder->encodeIfSupported($args[0]);
+
                     if (! isset($args[1]) && ! array_key_exists(1, $args)) {
                         throw new InvalidArgumentException(sprintf('Missing second argument for $operations[%d]["%s"]', $i, $type));
                     }
 
                     if ($codec) {
-                        $operations[$i][$type][1] = $codec->encode($args[1]);
+                        $operation[$type][1] = $codec->encode($args[1]);
                     }
 
                     if (! is_document($args[1])) {
@@ -363,19 +380,27 @@ class BulkWrite implements Executable
                         throw InvalidArgumentException::expectedDocumentType(sprintf('$operations[%d]["%s"][2]["collation"]', $i, $type), $args[2]['collation']);
                     }
 
+                    if (isset($args[2]['sort']) && ! is_document($args[2]['sort'])) {
+                        throw InvalidArgumentException::expectedDocumentType(sprintf('$operations[%d]["%s"][2]["sort"]', $i, $type), $args[2]['sort']);
+                    }
+
                     if (! is_bool($args[2]['upsert'])) {
                         throw InvalidArgumentException::invalidType(sprintf('$operations[%d]["%s"][2]["upsert"]', $i, $type), $args[2]['upsert'], 'boolean');
                     }
 
-                    $operations[$i][$type][2] = $args[2];
+                    $operation[$type][2] = $args[2];
 
                     break;
 
                 case self::UPDATE_MANY:
                 case self::UPDATE_ONE:
+                    $operation[$type][0] = $builderEncoder->encodeIfSupported($args[0]);
+
                     if (! isset($args[1]) && ! array_key_exists(1, $args)) {
                         throw new InvalidArgumentException(sprintf('Missing second argument for $operations[%d]["%s"]', $i, $type));
                     }
+
+                    $operation[$type][1] = $args[1] = $builderEncoder->encodeIfSupported($args[1]);
 
                     if ((! is_document($args[1]) || ! is_first_key_operator($args[1])) && ! is_pipeline($args[1])) {
                         throw new InvalidArgumentException(sprintf('Expected update operator(s) or non-empty pipeline for $operations[%d]["%s"][1]', $i, $type));
@@ -400,11 +425,19 @@ class BulkWrite implements Executable
                         throw InvalidArgumentException::expectedDocumentType(sprintf('$operations[%d]["%s"][2]["collation"]', $i, $type), $args[2]['collation']);
                     }
 
+                    if (isset($args[2]['sort']) && ! is_document($args[2]['sort'])) {
+                        throw InvalidArgumentException::expectedDocumentType(sprintf('$operations[%d]["%s"][2]["sort"]', $i, $type), $args[2]['sort']);
+                    }
+
+                    if (isset($args[2]['sort']) && $args[2]['multi']) {
+                        throw new InvalidArgumentException(sprintf('"sort" option cannot be used with $operations[%d]["%s"]', $i, $type));
+                    }
+
                     if (! is_bool($args[2]['upsert'])) {
                         throw InvalidArgumentException::invalidType(sprintf('$operations[%d]["%s"][2]["upsert"]', $i, $type), $args[2]['upsert'], 'boolean');
                     }
 
-                    $operations[$i][$type][2] = $args[2];
+                    $operation[$type][2] = $args[2];
 
                     break;
 

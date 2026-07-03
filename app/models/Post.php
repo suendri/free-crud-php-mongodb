@@ -11,83 +11,89 @@
 namespace App\Models;
 
 use App\Core\Model;
-use MongoDB;
+use MongoDB\BSON\ObjectId;
 
 class Post extends Model
 {
-
-     public function show()
+     public function show(): array
      {
-          $collection = $this->db->tb_posts;
-          $rows = $collection->find([]);
+          $rows = $this->db->tb_posts->find([], ['sort' => ['_id' => -1]]);
 
-          return $rows;
+          return array_map([$this, 'toArray'], iterator_to_array($rows));
      }
 
-     public function optCat()
+     public function optCat(): array
      {
-          $collection = $this->db->tb_categories;
-          $rows = $collection->find([]);
+          $rows = $this->db->tb_categories->find([], ['sort' => ['cat_name' => 1]]);
 
-          return $rows;
+          return array_map(function ($row) {
+               $row = (array) $row;
+
+               return [
+                    'cat_id' => (string) $row['_id'],
+                    'cat_name' => $row['cat_name'] ?? '',
+               ];
+          }, iterator_to_array($rows));
      }
 
-     public function save()
+     public function save(array $data): void
      {
-          $post_id_cat = $_POST['post_id_cat'];
-          $post_title = $_POST['post_title'];
-          $post_text = $_POST['post_text'];
+          $catId = new ObjectId($data['post_id_cat']);
+          $category = $this->db->tb_categories->findOne(['_id' => $catId]);
 
-          $col_cat = $this->db->tb_categories;
-          $row_cat = $col_cat->findOne(['_id' => new MongoDB\BSON\ObjectId($post_id_cat)]);
-
-          $collection = $this->db->tb_posts;
-          $collection->insertOne([
-               'post_title' => $post_title,
-               'post_text' => $post_text,
+          $this->db->tb_posts->insertOne([
+               'post_title' => $data['post_title'],
+               'post_text' => $data['post_text'],
                'post_categories' => [
-                    'cat_id' => new MongoDB\BSON\ObjectId($post_id_cat),
-                    'cat_name' => $row_cat['cat_name']
-               ]
+                    'cat_id' => $catId,
+                    'cat_name' => $category['cat_name'] ?? '',
+               ],
           ]);
      }
 
-     public function edit($id)
+     public function edit(string $id): ?array
      {
-          $collection = $this->db->tb_posts;
-          $row = $collection->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
+          $row = $this->db->tb_posts->findOne(['_id' => new ObjectId($id)]);
 
-          return $row;
+          return $row ? $this->toArray($row) : null;
      }
 
-     public function update()
+     public function update(array $data): void
      {
-          $post_id_cat = $_POST['post_id_cat'];
-          $post_title = $_POST['post_title'];
-          $post_text = $_POST['post_text'];
-          $id = $_POST['id'];
+          $catId = new ObjectId($data['post_id_cat']);
+          $category = $this->db->tb_categories->findOne(['_id' => $catId]);
 
-          $col_cat = $this->db->tb_categories;
-          $row_cat = $col_cat->findOne(['_id' => new MongoDB\BSON\ObjectId($post_id_cat)]);
-
-          $collection = $this->db->tb_posts;
-          $collection->updateOne(
-               ['_id' => new MongoDB\BSON\ObjectId($id)],
+          $this->db->tb_posts->updateOne(
+               ['_id' => new ObjectId($data['id'])],
                [
                     '$set' => [
-                         'post_title' => $post_title,
-                         'post_text' => $post_text,
-                         'post_categories.cat_id' => new MongoDB\BSON\ObjectId($post_id_cat),
-                         'post_categories.cat_name' => $row_cat['cat_name']
-                    ]
+                         'post_title' => $data['post_title'],
+                         'post_text' => $data['post_text'],
+                         'post_categories' => [
+                              'cat_id' => $catId,
+                              'cat_name' => $category['cat_name'] ?? '',
+                         ],
+                    ],
                ]
           );
      }
 
-     public function delete($id)
+     public function delete(string $id): void
      {
+          $this->db->tb_posts->deleteOne(['_id' => new ObjectId($id)]);
+     }
 
-          $collection = $this->db->tb_posts;
-          $collection->deleteOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
+     private function toArray(object|array $row): array
+     {
+          $row = (array) $row;
+          $category = isset($row['post_categories']) ? (array) $row['post_categories'] : [];
+
+          return [
+               'post_id' => (string) $row['_id'],
+               'post_id_cat' => isset($category['cat_id']) ? (string) $category['cat_id'] : '',
+               'post_title' => $row['post_title'] ?? '',
+               'post_text' => $row['post_text'] ?? '',
+               'cat_name' => $category['cat_name'] ?? '',
+          ];
      }
 }

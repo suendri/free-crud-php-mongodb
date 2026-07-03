@@ -14,16 +14,21 @@ use App\Core\Model;
 
 class Login extends Model
 {
-     public function proses()
+     public function findByEmail(string $email): ?array
      {
-          $email = $_POST['email'];
-          $password = $_POST['password'];
+          $user = new User();
 
-          $collection = $this->db->tb_users;
-          $row = $collection->findOne(['user_email' => $email]);
+          return $user->findByEmail($email);
+     }
 
-          if (!empty($row) and password_verify($password, $row['user_password'])) {
+     public function proses(string $email, string $password): ?array
+     {
+          $row = $this->findByEmail($email);
+
+          if ($row && password_verify($password, $row['user_password'])) {
                return $row;
           }
+
+          return null;
      }
 }

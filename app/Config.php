@@ -24,7 +24,10 @@ class Config
           date_default_timezone_set("Asia/Jakarta");
 
           // Url dan Assets
-          define("URL", "http://localhost/free-crud-php-mongodb");
+          $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+          $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+          $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+          define("URL", $scheme . "://" . $host . ($basePath === '' ? '' : $basePath));
           define("AST", URL . "/layouts/assets");
 
           define("ROOT", dirname(__DIR__) . DIRECTORY_SEPARATOR);

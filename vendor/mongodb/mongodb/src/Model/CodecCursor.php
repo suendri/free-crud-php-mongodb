@@ -17,11 +17,9 @@
 
 namespace MongoDB\Model;
 
-use Iterator;
 use MongoDB\BSON\Document;
+use MongoDB\BSON\Int64;
 use MongoDB\Codec\DocumentCodec;
-use MongoDB\Driver\Cursor;
-use MongoDB\Driver\CursorId;
 use MongoDB\Driver\CursorInterface;
 use MongoDB\Driver\Server;
 
@@ -34,17 +32,11 @@ use const E_USER_WARNING;
 
 /**
  * @template TValue of object
- * @template-implements CursorInterface<int, TValue>
- * @template-implements Iterator<int, TValue>
+ * @template-implements CursorInterface<TValue>
  */
-class CodecCursor implements CursorInterface, Iterator
+class CodecCursor implements CursorInterface
 {
     private const TYPEMAP = ['root' => 'bson'];
-
-    private Cursor $cursor;
-
-    /** @var DocumentCodec<TValue> */
-    private DocumentCodec $codec;
 
     /** @var TValue|null */
     private ?object $current = null;
@@ -66,14 +58,14 @@ class CodecCursor implements CursorInterface, Iterator
      * @param DocumentCodec<NativeClass> $codec
      * @return self<NativeClass>
      */
-    public static function fromCursor(Cursor $cursor, DocumentCodec $codec): self
+    public static function fromCursor(CursorInterface $cursor, DocumentCodec $codec): self
     {
         $cursor->setTypeMap(self::TYPEMAP);
 
         return new self($cursor, $codec);
     }
 
-    public function getId(): CursorId
+    public function getId(): Int64
     {
         return $this->cursor->getId();
     }
@@ -123,9 +115,7 @@ class CodecCursor implements CursorInterface, Iterator
     }
 
     /** @param DocumentCodec<TValue> $codec */
-    private function __construct(Cursor $cursor, DocumentCodec $codec)
+    private function __construct(private CursorInterface $cursor, private DocumentCodec $codec)
     {
-        $this->cursor = $cursor;
-        $this->codec = $codec;
     }
 }

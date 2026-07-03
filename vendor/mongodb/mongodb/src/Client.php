@@ -18,11 +18,14 @@
 namespace MongoDB;
 
 use Iterator;
-use Jean85\PrettyVersions;
+use MongoDB\Builder\Pipeline;
+use MongoDB\Driver\BulkWriteCommand;
+use MongoDB\Driver\BulkWriteCommandResult;
 use MongoDB\Driver\ClientEncryption;
 use MongoDB\Driver\Exception\InvalidArgumentException as DriverInvalidArgumentException;
 use MongoDB\Driver\Exception\RuntimeException as DriverRuntimeException;
 use MongoDB\Driver\Manager;
+use MongoDB\Driver\Monitoring\Subscriber;
 use MongoDB\Driver\ReadConcern;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\Session;
@@ -30,31 +33,26 @@ use MongoDB\Driver\WriteConcern;
 use MongoDB\Exception\InvalidArgumentException;
 use MongoDB\Exception\UnexpectedValueException;
 use MongoDB\Exception\UnsupportedException;
-use MongoDB\Model\BSONArray;
-use MongoDB\Model\BSONDocument;
-use MongoDB\Model\DatabaseInfoIterator;
+use MongoDB\Model\AutoEncryptionOptions;
+use MongoDB\Model\DatabaseInfo;
+use MongoDB\Model\DriverOptions;
+use MongoDB\Operation\ClientBulkWriteCommand;
 use MongoDB\Operation\DropDatabase;
 use MongoDB\Operation\ListDatabaseNames;
 use MongoDB\Operation\ListDatabases;
 use MongoDB\Operation\Watch;
-use Throwable;
+use stdClass;
+use Stringable;
 
-use function is_array;
-use function is_string;
+use function array_diff_key;
 
-class Client
+/**
+ * @psalm-import-type stage from Builder\Pipeline
+ * @psalm-no-seal-properties
+ */
+class Client implements Stringable
 {
     public const DEFAULT_URI = 'mongodb://127.0.0.1/';
-
-    private const DEFAULT_TYPE_MAP = [
-        'array' => BSONArray::class,
-        'document' => BSONDocument::class,
-        'root' => BSONDocument::class,
-    ];
-
-    private const HANDSHAKE_SEPARATOR = '/';
-
-    private static ?string $version = null;
 
     private Manager $manager;
 
@@ -64,9 +62,9 @@ class Client
 
     private string $uri;
 
-    private array $typeMap;
-
     private WriteConcern $writeConcern;
+
+    private DriverOptions $driverOptions;
 
     /**
      * Constructs a new Client instance.
@@ -76,6 +74,9 @@ class Client
      * databases and collections.
      *
      * Supported driver-specific options:
+     *
+     *  * builderEncoder (MongoDB\Codec\Encoder): Encoder for query and
+     *    aggregation builders. If not given, the default encoder will be used.
      *
      *  * typeMap (array): Default type map for cursors and BSON documents.
      *
@@ -93,28 +94,14 @@ class Client
      */
     public function __construct(?string $uri = null, array $uriOptions = [], array $driverOptions = [])
     {
-        $driverOptions += ['typeMap' => self::DEFAULT_TYPE_MAP];
-
-        if (! is_array($driverOptions['typeMap'])) {
-            throw InvalidArgumentException::invalidType('"typeMap" driver option', $driverOptions['typeMap'], 'array');
-        }
-
-        if (isset($driverOptions['autoEncryption']['keyVaultClient'])) {
-            if ($driverOptions['autoEncryption']['keyVaultClient'] instanceof self) {
-                $driverOptions['autoEncryption']['keyVaultClient'] = $driverOptions['autoEncryption']['keyVaultClient']->manager;
-            } elseif (! $driverOptions['autoEncryption']['keyVaultClient'] instanceof Manager) {
-                throw InvalidArgumentException::invalidType('"keyVaultClient" autoEncryption option', $driverOptions['autoEncryption']['keyVaultClient'], [self::class, Manager::class]);
-            }
-        }
-
-        $driverOptions['driver'] = $this->mergeDriverInfo($driverOptions['driver'] ?? []);
+        $this->driverOptions = DriverOptions::fromArray($driverOptions);
 
         $this->uri = $uri ?? self::DEFAULT_URI;
-        $this->typeMap = $driverOptions['typeMap'];
 
-        unset($driverOptions['typeMap']);
+        $driverOptions = array_diff_key($this->driverOptions->toArray(), ['builderEncoder' => 1, 'typeMap' => 1]);
 
         $this->manager = new Manager($uri, $uriOptions, $driverOptions);
+
         $this->readConcern = $this->manager->getReadConcern();
         $this->readPreference = $this->manager->getReadPreference();
         $this->writeConcern = $this->manager->getWriteConcern();
@@ -124,14 +111,14 @@ class Client
      * Return internal properties for debugging purposes.
      *
      * @see https://php.net/manual/en/language.oop5.magic.php#language.oop5.magic.debuginfo
-     * @return array
      */
-    public function __debugInfo()
+    public function __debugInfo(): array
     {
         return [
             'manager' => $this->manager,
             'uri' => $this->uri,
-            'typeMap' => $this->typeMap,
+            'typeMap' => $this->driverOptions->typeMap,
+            'builderEncoder' => $this->driverOptions->builderEncoder,
             'writeConcern' => $this->writeConcern,
         ];
     }
@@ -146,41 +133,66 @@ class Client
      * @see https://php.net/oop5.overloading#object.get
      * @see https://php.net/types.string#language.types.string.parsing.complex
      * @param string $databaseName Name of the database to select
-     * @return Database
      */
-    public function __get(string $databaseName)
+    public function __get(string $databaseName): Database
     {
-        return $this->selectDatabase($databaseName);
+        return $this->getDatabase($databaseName);
     }
 
     /**
      * Return the connection string (i.e. URI).
-     *
-     * @return string
      */
-    public function __toString()
+    public function __toString(): string
     {
         return $this->uri;
     }
 
     /**
-     * Returns a ClientEncryption instance for explicit encryption and decryption
+     * Registers a monitoring event subscriber with this Client's Manager
      *
-     * @param array $options Encryption options
-     *
-     * @return ClientEncryption
+     * @see Manager::addSubscriber()
      */
-    public function createClientEncryption(array $options)
+    final public function addSubscriber(Subscriber $subscriber): void
     {
-        if (isset($options['keyVaultClient'])) {
-            if ($options['keyVaultClient'] instanceof self) {
-                $options['keyVaultClient'] = $options['keyVaultClient']->manager;
-            } elseif (! $options['keyVaultClient'] instanceof Manager) {
-                throw InvalidArgumentException::invalidType('"keyVaultClient" option', $options['keyVaultClient'], [self::class, Manager::class]);
-            }
+        $this->manager->addSubscriber($subscriber);
+    }
+
+    /**
+     * Executes multiple write operations across multiple namespaces.
+     *
+     * @param BulkWriteCommand|ClientBulkWrite $bulk    Assembled bulk write command or builder
+     * @param array                            $options Additional options
+     * @throws UnsupportedException if options are unsupported on the selected server
+     * @throws InvalidArgumentException for parameter/option parsing errors
+     * @throws DriverRuntimeException for other driver errors (e.g. connection errors)
+     * @see ClientBulkWriteCommand::__construct() for supported options
+     */
+    public function bulkWrite(BulkWriteCommand|ClientBulkWrite $bulk, array $options = []): BulkWriteCommandResult
+    {
+        if (! isset($options['writeConcern']) && ! is_in_transaction($options)) {
+            $options['writeConcern'] = $this->writeConcern;
         }
 
-        return $this->manager->createClientEncryption($options);
+        if ($bulk instanceof ClientBulkWrite) {
+            $bulk = $bulk->bulkWriteCommand;
+        }
+
+        $operation = new ClientBulkWriteCommand($bulk, $options);
+        $server = select_server_for_write($this->manager, $options);
+
+        return $operation->execute($server);
+    }
+
+    /**
+     * Returns a ClientEncryption instance for explicit encryption and decryption
+     *
+     * @param array{kmsProviders?: stdClass|array<string, array>, keyVaultClient?: Client|Manager} $options
+     */
+    public function createClientEncryption(array $options): ClientEncryption
+    {
+        $options = AutoEncryptionOptions::fromArray($options);
+
+        return $this->manager->createClientEncryption($options->toArray());
     }
 
     /**
@@ -189,17 +201,12 @@ class Client
      * @see DropDatabase::__construct() for supported options
      * @param string $databaseName Database name
      * @param array  $options      Additional options
-     * @return array|object Command result document
      * @throws UnsupportedException if options are unsupported on the selected server
      * @throws InvalidArgumentException for parameter/option parsing errors
      * @throws DriverRuntimeException for other driver errors (e.g. connection errors)
      */
-    public function dropDatabase(string $databaseName, array $options = [])
+    public function dropDatabase(string $databaseName, array $options = []): void
     {
-        if (! isset($options['typeMap'])) {
-            $options['typeMap'] = $this->typeMap;
-        }
-
         $server = select_server_for_write($this->manager, $options);
 
         if (! isset($options['writeConcern']) && ! is_in_transaction($options)) {
@@ -208,15 +215,52 @@ class Client
 
         $operation = new DropDatabase($databaseName, $options);
 
-        return $operation->execute($server);
+        $operation->execute($server);
+    }
+
+    /**
+     * Returns a collection instance.
+     *
+     * If the collection does not exist in the database, it is not created when
+     * invoking this method.
+     *
+     * @see Collection::__construct() for supported options
+     * @throws InvalidArgumentException for parameter/option parsing errors
+     */
+    public function getCollection(string $databaseName, string $collectionName, array $options = []): Collection
+    {
+        $options += [
+            'typeMap' => $this->driverOptions->typeMap,
+            'builderEncoder' => $this->driverOptions->builderEncoder,
+            'autoEncryptionEnabled' => $this->driverOptions->isAutoEncryptionEnabled(),
+        ];
+
+        return new Collection($this->manager, $databaseName, $collectionName, $options);
+    }
+
+    /**
+     * Returns a database instance.
+     *
+     * If the database does not exist on the server, it is not created when
+     * invoking this method.
+     *
+     * @see Database::__construct() for supported options
+     */
+    public function getDatabase(string $databaseName, array $options = []): Database
+    {
+        $options += [
+            'typeMap' => $this->driverOptions->typeMap,
+            'builderEncoder' => $this->driverOptions->builderEncoder,
+            'autoEncryptionEnabled' => $this->driverOptions->isAutoEncryptionEnabled(),
+        ];
+
+        return new Database($this->manager, $databaseName, $options);
     }
 
     /**
      * Return the Manager.
-     *
-     * @return Manager
      */
-    public function getManager()
+    public function getManager(): Manager
     {
         return $this->manager;
     }
@@ -225,40 +269,34 @@ class Client
      * Return the read concern for this client.
      *
      * @see https://php.net/manual/en/mongodb-driver-readconcern.isdefault.php
-     * @return ReadConcern
      */
-    public function getReadConcern()
+    public function getReadConcern(): ReadConcern
     {
         return $this->readConcern;
     }
 
     /**
      * Return the read preference for this client.
-     *
-     * @return ReadPreference
      */
-    public function getReadPreference()
+    public function getReadPreference(): ReadPreference
     {
         return $this->readPreference;
     }
 
     /**
      * Return the type map for this client.
-     *
-     * @return array
      */
-    public function getTypeMap()
+    public function getTypeMap(): array
     {
-        return $this->typeMap;
+        return $this->driverOptions->typeMap;
     }
 
     /**
      * Return the write concern for this client.
      *
      * @see https://php.net/manual/en/mongodb-driver-writeconcern.isdefault.php
-     * @return WriteConcern
      */
-    public function getWriteConcern()
+    public function getWriteConcern(): WriteConcern
     {
         return $this->writeConcern;
     }
@@ -267,6 +305,7 @@ class Client
      * List database names.
      *
      * @see ListDatabaseNames::__construct() for supported options
+     * @return Iterator<int, string>
      * @throws UnexpectedValueException if the command response was malformed
      * @throws InvalidArgumentException for parameter/option parsing errors
      * @throws DriverRuntimeException for other driver errors (e.g. connection errors)
@@ -283,17 +322,27 @@ class Client
      * List databases.
      *
      * @see ListDatabases::__construct() for supported options
-     * @return DatabaseInfoIterator
+     * @return Iterator<int, DatabaseInfo>
      * @throws UnexpectedValueException if the command response was malformed
      * @throws InvalidArgumentException for parameter/option parsing errors
      * @throws DriverRuntimeException for other driver errors (e.g. connection errors)
      */
-    public function listDatabases(array $options = [])
+    public function listDatabases(array $options = []): Iterator
     {
         $operation = new ListDatabases($options);
         $server = select_server($this->manager, $options);
 
         return $operation->execute($server);
+    }
+
+    /**
+     * Unregisters a monitoring event subscriber with this Client's Manager
+     *
+     * @see Manager::removeSubscriber()
+     */
+    final public function removeSubscriber(Subscriber $subscriber): void
+    {
+        $this->manager->removeSubscriber($subscriber);
     }
 
     /**
@@ -303,14 +352,11 @@ class Client
      * @param string $databaseName   Name of the database containing the collection
      * @param string $collectionName Name of the collection to select
      * @param array  $options        Collection constructor options
-     * @return Collection
      * @throws InvalidArgumentException for parameter/option parsing errors
      */
-    public function selectCollection(string $databaseName, string $collectionName, array $options = [])
+    public function selectCollection(string $databaseName, string $collectionName, array $options = []): Collection
     {
-        $options += ['typeMap' => $this->typeMap];
-
-        return new Collection($this->manager, $databaseName, $collectionName, $options);
+        return $this->getCollection($databaseName, $collectionName, $options);
     }
 
     /**
@@ -319,14 +365,11 @@ class Client
      * @see Database::__construct() for supported options
      * @param string $databaseName Name of the database to select
      * @param array  $options      Database constructor options
-     * @return Database
      * @throws InvalidArgumentException for parameter/option parsing errors
      */
-    public function selectDatabase(string $databaseName, array $options = [])
+    public function selectDatabase(string $databaseName, array $options = []): Database
     {
-        $options += ['typeMap' => $this->typeMap];
-
-        return new Database($this->manager, $databaseName, $options);
+        return $this->getDatabase($databaseName, $options);
     }
 
     /**
@@ -334,9 +377,8 @@ class Client
      *
      * @see https://php.net/manual/en/mongodb-driver-manager.startsession.php
      * @param array $options Session options
-     * @return Session
      */
-    public function startSession(array $options = [])
+    public function startSession(array $options = []): Session
     {
         return $this->manager->startSession($options);
     }
@@ -345,13 +387,19 @@ class Client
      * Create a change stream for watching changes to the cluster.
      *
      * @see Watch::__construct() for supported options
-     * @param array $pipeline Aggregation pipeline
-     * @param array $options  Command options
-     * @return ChangeStream
+     * @psalm-param list<stage> $pipeline Aggregation pipeline
+     * @param array $options Command options
      * @throws InvalidArgumentException for parameter/option parsing errors
      */
-    public function watch(array $pipeline = [], array $options = [])
+    public function watch(array $pipeline = [], array $options = []): ChangeStream
     {
+        if (is_builder_pipeline($pipeline)) {
+            $pipeline = new Pipeline(...$pipeline);
+        }
+
+        /** @var array<array-key, mixed> $pipeline */
+        $pipeline = $this->driverOptions->builderEncoder->encodeIfSupported($pipeline);
+
         if (! isset($options['readPreference']) && ! is_in_transaction($options)) {
             $options['readPreference'] = $this->readPreference;
         }
@@ -363,54 +411,11 @@ class Client
         }
 
         if (! isset($options['typeMap'])) {
-            $options['typeMap'] = $this->typeMap;
+            $options['typeMap'] = $this->driverOptions->typeMap;
         }
 
         $operation = new Watch($this->manager, null, null, $pipeline, $options);
 
         return $operation->execute($server);
-    }
-
-    private static function getVersion(): string
-    {
-        if (self::$version === null) {
-            try {
-                self::$version = PrettyVersions::getVersion('mongodb/mongodb')->getPrettyVersion();
-            } catch (Throwable $t) {
-                return 'unknown';
-            }
-        }
-
-        return self::$version;
-    }
-
-    private function mergeDriverInfo(array $driver): array
-    {
-        $mergedDriver = [
-            'name' => 'PHPLIB',
-            'version' => self::getVersion(),
-        ];
-
-        if (isset($driver['name'])) {
-            if (! is_string($driver['name'])) {
-                throw InvalidArgumentException::invalidType('"name" handshake option', $driver['name'], 'string');
-            }
-
-            $mergedDriver['name'] .= self::HANDSHAKE_SEPARATOR . $driver['name'];
-        }
-
-        if (isset($driver['version'])) {
-            if (! is_string($driver['version'])) {
-                throw InvalidArgumentException::invalidType('"version" handshake option', $driver['version'], 'string');
-            }
-
-            $mergedDriver['version'] .= self::HANDSHAKE_SEPARATOR . $driver['version'];
-        }
-
-        if (isset($driver['platform'])) {
-            $mergedDriver['platform'] = $driver['platform'];
-        }
-
-        return $mergedDriver;
     }
 }

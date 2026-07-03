@@ -1,26 +1,22 @@
-<h1>Free CRUD PHP MongoDB</h1>
+<div class="mb-4">
+     <h2 class="h3 fw-semibold">Login</h2>
+     <p class="text-secondary mb-0">Masuk sebagai operator atau admin.</p>
+</div>
 
-<h2>Login System</h2>
-
-<form action="<?php echo URL; ?>/login/proses" method="post">
-     <table>
-          <tr>
-               <td>Username</td>
-               <td><input type="email" name="email" placeholder="Email" required></td>
-          </tr>
-          <tr>
-               <td>Password</td>
-               <td><input type="password" name="password" placeholder="Password" required></td>
-          </tr>
-          <tr>
-               <td></td>
-               <td><input type="submit" name="submit" value="Login"></td>
-          </tr>
-     </table>
+<form action="<?php echo url('/login/proses'); ?>" method="post" class="vstack gap-3">
+     <?php echo csrf_field(); ?>
+     <div>
+          <label for="email" class="form-label">Email</label>
+          <input type="email" class="form-control" id="email" name="email" placeholder="nama@email.com" required>
+     </div>
+     <div>
+          <label for="password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="password" name="password" required>
+     </div>
+     <button class="btn btn-primary w-100">Login</button>
 </form>
 
-<?php if (isset($_SESSION['login']) && $_SESSION['login'] == false) { ?>
-     <div class="error">
-          Login tidak di temukan
-     </div>
-<?php } ?>
+<div class="border-top mt-4 pt-4 text-center">
+     <span class="text-secondary">Belum punya akun operator?</span>
+     <a href="<?php echo url('/login/register'); ?>">Registrasi</a>
+</div>

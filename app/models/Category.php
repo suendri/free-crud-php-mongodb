@@ -11,60 +11,58 @@
 namespace App\Models;
 
 use App\Core\Model;
-use MongoDB;
+use MongoDB\BSON\ObjectId;
 
 class Category extends Model
 {
-
-     public function show()
+     public function show(): array
      {
+          $rows = $this->db->tb_categories->find([], ['sort' => ['_id' => -1]]);
 
-          $collection = $this->db->tb_categories;
-          $rows = $collection->find([]);
-
-          return $rows;
+          return array_map([$this, 'toArray'], iterator_to_array($rows));
      }
 
-     public function save()
+     public function save(array $data): void
      {
-          $cat_name = $_POST['cat_name'];
-
-          $collection = $this->db->tb_categories;
-          $collection->insertOne([
-               'cat_name' => $cat_name
+          $this->db->tb_categories->insertOne([
+               'cat_name' => $data['cat_name'],
           ]);
      }
 
-     public function edit($id)
+     public function edit(string $id): ?array
      {
-          $collection = $this->db->tb_categories;
-          $row = $collection->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
+          $row = $this->db->tb_categories->findOne(['_id' => new ObjectId($id)]);
 
-          return $row;
+          return $row ? $this->toArray($row) : null;
      }
 
-     public function update()
+     public function update(array $data): void
      {
-          $cat_name = $_POST['cat_name'];
-          $id = $_POST['id'];
+          $objectId = new ObjectId($data['id']);
 
-          $collection1 = $this->db->tb_categories;
-          $collection1->updateOne(
-               ['_id' => new MongoDB\BSON\ObjectId($id)],
-               ['$set' => [
-                    'cat_name' => $cat_name
-               ]]
+          $this->db->tb_categories->updateOne(
+               ['_id' => $objectId],
+               ['$set' => ['cat_name' => $data['cat_name']]]
           );
 
-          $collection2 = $this->db->tb_posts;
-          $collection2->updateMany(
-               ['post_categories.cat_id' => new MongoDB\BSON\ObjectId($id)],
-               [
-                    '$set' => [
-                         'post_categories.cat_id' => new MongoDB\BSON\ObjectId($id),
-                         'post_categories.cat_name' => $cat_name
-                    ]
-               ]
+          $this->db->tb_posts->updateMany(
+               ['post_categories.cat_id' => $objectId],
+               ['$set' => ['post_categories.cat_name' => $data['cat_name']]]
           );
+     }
+
+     public function delete(string $id): void
+     {
+          $this->db->tb_categories->deleteOne(['_id' => new ObjectId($id)]);
+     }
+
+     private function toArray(object|array $row): array
+     {
+          $row = (array) $row;
+
+          return [
+               'cat_id' => (string) $row['_id'],
+               'cat_name' => $row['cat_name'] ?? '',
+          ];
      }
 }

@@ -11,77 +11,102 @@
 namespace App\Models;
 
 use App\Core\Model;
-use MongoDB;
+use MongoDB\BSON\ObjectId;
 
 class User extends Model
 {
-
-      public function show()
+      public function show(): array
       {
-            $collection = $this->db->tb_users;
-            $rows = $collection->find([]);
+            $rows = $this->db->tb_users->find([], ['sort' => ['_id' => -1]]);
 
-            return $rows;
+            return array_map([$this, 'toArray'], iterator_to_array($rows));
       }
 
-      public function save()
+      public function save(array $data): void
       {
-            $email = $_POST['email'];
-            $password = $_POST['password'];
-            $full_name = $_POST['full_name'];
-
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-
-            $collection = $this->db->tb_users;
-            $collection->insertOne([
-                  'user_email' => $email,
-                  'user_password' => $password_hash,
-                  'user_full_name' => $full_name
+            $this->db->tb_users->insertOne([
+                  'user_email' => $data['email'],
+                  'user_password' => password_hash($data['password'], PASSWORD_DEFAULT),
+                  'user_full_name' => $data['full_name'],
+                  'user_role' => $data['role'] ?? 'operator',
+                  'created_at' => date('Y-m-d H:i:s'),
             ]);
       }
 
-      public function edit($id)
+      public function edit(string $id): ?array
       {
-            $collection = $this->db->tb_users;
-            $row = $collection->findOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
+            $row = $this->db->tb_users->findOne(['_id' => new ObjectId($id)]);
 
-            return $row;
+            return $row ? $this->toArray($row, true) : null;
       }
 
-      public function update()
+      public function update(array $data): void
       {
-            $email = $_POST['email'];
-            $password = $_POST['password'];
-            $full_name = $_POST['full_name'];
-            $id = $_POST['id'];
+            $set = [
+                  'user_email' => $data['email'],
+                  'user_full_name' => $data['full_name'],
+            ];
 
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-
-            $collection = $this->db->tb_users;
-
-            if (!empty($password)) {
-                  $collection->updateOne(
-                        ['_id' => new MongoDB\BSON\ObjectId($id)],
-                        ['$set' => [
-                              'user_email' => $email,
-                              'user_password' => $password_hash,
-                              'user_full_name' => $full_name
-                        ]]
-                  );
-            } else {
-                  $collection->updateOne(
-                        ['_id' => new MongoDB\BSON\ObjectId($id)],
-                        ['$set' => [
-                              'user_email' => $email,
-                              'user_full_name' => $full_name
-                        ]]
-                  );
+            if (!empty($data['password'])) {
+                  $set['user_password'] = password_hash($data['password'], PASSWORD_DEFAULT);
             }
+
+            $this->db->tb_users->updateOne(
+                  ['_id' => new ObjectId($data['id'])],
+                  ['$set' => $set]
+            );
       }
 
-      public function delete($id)
+      public function updateRole(string $id, string $role): void
       {
-            $collection = $this->db->tb_users;
-            $collection->deleteOne(['_id' => new MongoDB\BSON\ObjectId($id)]);
+            if (!in_array($role, ['admin', 'operator'], true)) {
+                  return;
+            }
+
+            $this->db->tb_users->updateOne(
+                  ['_id' => new ObjectId($id)],
+                  ['$set' => ['user_role' => $role]]
+            );
+      }
+
+      public function delete(string $id): void
+      {
+            $this->db->tb_users->deleteOne(['_id' => new ObjectId($id)]);
+      }
+
+      public function emailExists(string $email, ?string $ignoreId = null): bool
+      {
+            $filter = ['user_email' => $email];
+
+            if ($ignoreId !== null && $ignoreId !== '') {
+                  $filter['_id'] = ['$ne' => new ObjectId($ignoreId)];
+            }
+
+            return $this->db->tb_users->countDocuments($filter, ['limit' => 1]) > 0;
+      }
+
+      public function findByEmail(string $email): ?array
+      {
+            $row = $this->db->tb_users->findOne(['user_email' => $email]);
+
+            return $row ? $this->toArray($row, true) : null;
+      }
+
+      private function toArray(object|array $row, bool $includePassword = false): array
+      {
+            $row = (array) $row;
+            $data = [
+                  'user_id' => (string) $row['_id'],
+                  'user_email' => $row['user_email'] ?? '',
+                  'user_full_name' => $row['user_full_name'] ?? '',
+                  'user_role' => $row['user_role'] ?? 'operator',
+                  'created_at' => $row['created_at'] ?? '',
+            ];
+
+            if ($includePassword) {
+                  $data['user_password'] = $row['user_password'] ?? '';
+            }
+
+            return $data;
       }
 }

@@ -18,7 +18,7 @@ class Index extends Controller
 	public function index()
 	{
 		if (isset($_SESSION['login']) && $_SESSION['login'] == true) {
-			header('location: ' . URL . '/dashboard');
+			$this->redirect('/dashboard');
 		} else {
 			$this->login('login/index');
 		}

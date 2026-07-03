@@ -39,8 +39,18 @@ class Posts extends Controller
 
      public function save()
      {
-          $this->model->save();
-          header('location:' . URL . '/posts');
+          $this->requirePost();
+          $this->validateCsrf();
+
+          $data = $this->postData();
+          if ($data['post_title'] === '' || $data['post_id_cat'] === '') {
+               $this->flash('error', 'Kategori dan judul wajib diisi.');
+               $this->redirect('/posts/input');
+          }
+
+          $this->model->save($data);
+          $this->flash('success', 'Post berhasil ditambahkan.');
+          $this->redirect('/posts');
      }
 
      public function edit($id)
@@ -56,13 +66,38 @@ class Posts extends Controller
 
      public function update()
      {
-          $this->model->update();
-          header('location:' . URL . '/posts');
+          $this->requirePost();
+          $this->validateCsrf();
+
+          $data = $this->postData();
+          $data['id'] = (string) $this->postInput('id');
+
+          if ($data['post_title'] === '' || $data['post_id_cat'] === '') {
+               $this->flash('error', 'Kategori dan judul wajib diisi.');
+               $this->redirect('/posts');
+          }
+
+          $this->model->update($data);
+          $this->flash('success', 'Post berhasil diperbarui.');
+          $this->redirect('/posts');
      }
 
      public function delete($id)
      {
-          $this->model->delete($id);
-          header('location:' . URL . '/posts');
+          $this->requirePost();
+          $this->validateCsrf();
+
+          $this->model->delete((string) $id);
+          $this->flash('success', 'Post berhasil dihapus.');
+          $this->redirect('/posts');
+     }
+
+     private function postData(): array
+     {
+          return [
+               'post_id_cat' => (string) $this->postInput('post_id_cat'),
+               'post_title' => trim((string) $this->postInput('post_title')),
+               'post_text' => trim((string) $this->postInput('post_text')),
+          ];
      }
 }

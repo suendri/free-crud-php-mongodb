@@ -4,7 +4,7 @@
     "type": "project",
     "authors": [
         {
-            "name": "Suendri",
+            "name": "suendri",
             "email": "suendri@gmail.com"
         }
     ],
@@ -13,9 +13,14 @@
             "App\\": "app/"
         }
     },
+    "config": {
+        "platform": {
+            "php": "8.2.31"
+        }
+    },
     "require": {
-        "filp/whoops": "^2.14",
-        "mongodb/mongodb": "^1.17",
-        "nesbot/carbon": "^2.71"
+        "filp/whoops": "^2.18",
+        "mongodb/mongodb": "^2.3",
+        "nesbot/carbon": "^3.11"
     }
 }

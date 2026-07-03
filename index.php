@@ -9,10 +9,11 @@
  */
 
 // Laporan error
-error_reporting(E_ALL);
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 
 // Autoload
 require_once __DIR__ . "/vendor/autoload.php";
+require_once __DIR__ . "/app/helpers.php";
 
 // Whoops
 $whoops = new \Whoops\Run;

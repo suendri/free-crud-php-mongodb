@@ -10,21 +10,21 @@
         { "name": "Jérôme Tamarelle", "email": "jerome.tamarelle@mongodb.com" }
     ],
     "require": {
-        "php": "^7.4 || ^8.0",
-        "ext-hash": "*",
-        "ext-json": "*",
-        "ext-mongodb": "^1.17.0",
-        "jean85/pretty-package-versions": "^2.0.1",
+        "php": "^8.1",
+        "ext-mongodb": "^2.3",
+        "composer-runtime-api": "^2.0",
         "psr/log": "^1.1.4|^2|^3",
-        "symfony/polyfill-php80": "^1.27",
-        "symfony/polyfill-php81": "^1.27"
+        "symfony/polyfill-php85": "^1.33"
     },
     "require-dev": {
         "doctrine/coding-standard": "^12.0",
-        "rector/rector": "^0.18",
+        "phpunit/phpunit": "^10.5.35",
+        "rector/rector": "^2.3.4",
         "squizlabs/php_codesniffer": "^3.7",
-        "symfony/phpunit-bridge": "^5.2",
-        "vimeo/psalm": "^5.13"
+        "vimeo/psalm": "~6.14.2"
+    },
+    "replace": {
+        "mongodb/builder": "*"
     },
     "autoload": {
         "psr-4": { "MongoDB\\": "src/" },
@@ -33,10 +33,11 @@
     "autoload-dev": {
         "psr-4": {
             "MongoDB\\Tests\\": "tests/"
-        },
-        "files": [ "tests/PHPUnit/Functions.php" ]
+        }
     },
     "scripts": {
+        "pre-install-cmd": "git submodule update --init",
+        "pre-update-cmd": "git submodule update --init",
         "bench": "cd benchmark && composer update && vendor/bin/phpbench run --report=aggregate",
         "checks": [
             "@check:cs",
@@ -49,11 +50,11 @@
         "fix:cs": "phpcbf",
         "fix:psalm:baseline": "psalm --set-baseline=psalm-baseline.xml",
         "fix:rector": "rector process --ansi",
-        "test": "simple-phpunit"
+        "test": "phpunit"
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "1.17.x-dev"
+            "dev-master": "1.x-dev"
         }
     },
     "config": {

@@ -21,35 +21,29 @@ class Bootstrap
 			$url = filter_var($_GET['page'], FILTER_SANITIZE_URL);
 
 			// trim = Hilangkan space
-			$url = str_replace(' ', '', $url);
+			$url = trim(str_replace(' ', '', $url), '/');
 
 			// explode = Membagi string diantara slash
-			$url = explode('/', $url);
+			$url = $url === '' ? [] : explode('/', $url);
 
 			// ucfirst = Uppercase First
 			// array_shift = menampilkan nilai pertama array
-			$page = ucfirst(array_shift($url));
+			$page = ucfirst(array_shift($url) ?: 'Index');
 
 			if (file_exists(ROOT . "app/controllers/" . $page . ".php")) {
 				$class = "App\\Controllers\\" . $page;
 				$controller = new $class;
 
 				// cek method
-				// $action = array_shift($url);
-				// update PHP 8.1
-				if ($url != null) {
-					$action = array_shift($url);
-				} else {
-					$action = "";
-				}
+				$action = array_shift($url) ?: "index";
 
-				if (method_exists($controller, $action)) {
+				if (preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $action) && method_exists($controller, $action)) {
 					// Parameters = controller/detail/1
 					$params = array_values($url);
 					if (!empty($params)) {
 						call_user_func_array(array($controller, $action), $params);
 					} else {
-						$controller->{$action}(@$url);
+						$controller->{$action}();
 					}
 				} else {
 					$controller->index();

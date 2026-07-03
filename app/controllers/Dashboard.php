@@ -21,12 +21,20 @@ class Dashboard extends Controller
 
 	public function index()
 	{
-		$this->dashboard('dashboard/index');
+		$data = [
+			'total_users' => count((new \App\Models\User())->show()),
+			'total_categories' => count((new \App\Models\Category())->show()),
+			'total_posts' => count((new \App\Models\Post())->show()),
+		];
+
+		$this->dashboard('dashboard/index', $data);
 	}
 
 	public function logout()
 	{
+		$this->requirePost();
+		$this->validateCsrf();
 		session_destroy();
-		header('location:' . URL);
+		$this->redirect('/');
 	}
 }

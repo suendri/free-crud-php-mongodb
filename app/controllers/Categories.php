@@ -36,8 +36,18 @@ class Categories extends Controller
 
      public function save()
      {
-          $this->model->save();
-          header('location:' . URL . '/categories');
+          $this->requirePost();
+          $this->validateCsrf();
+
+          $catName = trim((string) $this->postInput('cat_name'));
+          if ($catName === '') {
+               $this->flash('error', 'Nama kategori wajib diisi.');
+               $this->redirect('/categories/input');
+          }
+
+          $this->model->save(['cat_name' => $catName]);
+          $this->flash('success', 'Kategori berhasil ditambahkan.');
+          $this->redirect('/categories');
      }
 
      public function edit($id)
@@ -48,7 +58,30 @@ class Categories extends Controller
 
      public function update()
      {
-          $this->model->update();
-          header('location:' . URL . '/categories');
+          $this->requirePost();
+          $this->validateCsrf();
+
+          $catName = trim((string) $this->postInput('cat_name'));
+          if ($catName === '') {
+               $this->flash('error', 'Nama kategori wajib diisi.');
+               $this->redirect('/categories');
+          }
+
+          $this->model->update([
+               'id' => (string) $this->postInput('id'),
+               'cat_name' => $catName,
+          ]);
+          $this->flash('success', 'Kategori berhasil diperbarui.');
+          $this->redirect('/categories');
+     }
+
+     public function delete($id)
+     {
+          $this->requirePost();
+          $this->validateCsrf();
+
+          $this->model->delete((string) $id);
+          $this->flash('success', 'Kategori berhasil dihapus.');
+          $this->redirect('/categories');
      }
 }
